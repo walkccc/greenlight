@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"flag"
-	"fmt"
 	"net/http"
 	"os"
 	"time"
@@ -81,19 +80,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v1/healthcheck", app.healthcheckHandler)
 
-	server := &http.Server{
-		Addr:         fmt.Sprintf(":%d", cfg.port),
-		Handler:      app.routes(),
-		IdleTimeout:  time.Minute,
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 10 * time.Second,
-	}
-
-	logger.PrintInfo("starting server", map[string]string{
-		"env":  cfg.env,
-		"addr": server.Addr,
-	})
-	err = server.ListenAndServe()
+	err = app.serve()
 	logger.PrintFatal(err, nil)
 }
 
