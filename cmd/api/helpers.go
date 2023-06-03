@@ -181,3 +181,18 @@ func (app *application) readInt(
 
 	return i
 }
+
+// background accepts an arbitrary function as a parameter and launches a background goroutine that
+// is capable of recovering from any panics that may occur.
+func (app *application) background(fn func()) {
+	go func() {
+		// Recover any panic.
+		defer func() {
+			if err := recover(); err != nil {
+				app.logger.PrintError(fmt.Errorf("%s", err), nil)
+			}
+		}()
+
+		fn()
+	}()
+}
