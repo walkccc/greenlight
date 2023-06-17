@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 // Permissions slice holds the permission codes (e.g. "movies:read" and "movies:write") for a single
@@ -21,11 +23,32 @@ func (p Permissions) Include(code string) bool {
 }
 
 type PermissionModelInterface interface {
+	AddForUser(userId int64, codes ...string) error
 	GetAllForUser(userID int64) (Permissions, error)
 }
 
 type PermissionModel struct {
 	DB *sql.DB
+}
+
+func (m PermissionModel) AddForUser(userID int64, codes ...string) error {
+	query := `
+		INSERT INTO users_permissions
+		SELECT $1,
+			permissions.id
+		FROM permissions
+		WHERE permissions.code = ANY($2)
+	`
+	args := []any{
+		userID,
+		pq.Array(codes),
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := m.DB.ExecContext(ctx, query, args...)
+	return err
 }
 
 func (m PermissionModel) GetAllForUser(userID int64) (Permissions, error) {
