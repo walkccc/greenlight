@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"expvar"
 	"flag"
+	"fmt"
 	"net/http"
 	"os"
 	"runtime"
@@ -16,9 +17,12 @@ import (
 	"github.com/walkccc/greenlight/internal/data"
 	"github.com/walkccc/greenlight/internal/jsonlog"
 	"github.com/walkccc/greenlight/internal/mailer"
+	"github.com/walkccc/greenlight/internal/vcs"
 )
 
-const version = "1.0.0"
+var (
+	version = vcs.Version()
+)
 
 // config holds all the configuration settings for our application.
 type config struct {
@@ -96,7 +100,14 @@ func main() {
 		},
 	)
 
+	displayVersion := flag.Bool("version", false, "Display version and exit")
+
 	flag.Parse()
+
+	if *displayVersion {
+		fmt.Printf("Version:\t%s\n", version)
+		os.Exit(0)
+	}
 
 	logger := jsonlog.New(os.Stdout, jsonlog.LevelInfo)
 
