@@ -118,10 +118,13 @@ func (m MovieModel) GetAll(title string, genres []string, filters Filters) ([]*M
 			(to_tsvector('simple', title) @@ plainto_tsquery('simple', $1) OR $1 = '')
 			AND (genres @> $2 OR $2 = '{}')
 		ORDER BY %s %s, id ASC
+		LIMIT $3 OFFSET $4
 	`, filters.sortColumn(), filters.sortDirection())
 	args := []any{
 		title,
 		pq.Array(genres),
+		filters.limit(),
+		filters.offset(),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
