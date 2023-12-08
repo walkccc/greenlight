@@ -34,6 +34,13 @@ func ValidateMovie(v *validator.Validator, movie *Movie) {
 	v.Check(validator.Unique(movie.Genres), "genres", "must not contain duplicate values")
 }
 
+type MovieModelInterface interface {
+	Create(movie *Movie) error
+	Get(id int64) (*Movie, error)
+	Update(movie *Movie) error
+	Delete(id int64) error
+}
+
 type MovieModel struct {
 	DB *sql.DB
 }
