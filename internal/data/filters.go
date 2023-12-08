@@ -1,6 +1,6 @@
 package data
 
-import "github.com/walkccc/greenlight/internal/data/validator"
+import "github.com/walkccc/greenlight/internal/validator"
 
 type Filters struct {
 	Page           int
