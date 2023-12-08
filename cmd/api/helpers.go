@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/julienschmidt/httprouter"
 )
@@ -55,13 +56,21 @@ func (app *application) writeJSON(
 
 // readJSON decodes the JSON from the request body, then triage the errors and
 // replace them with the custom messages as necessary.
-func (app *application) readJSON(r *http.Request, dst any) error {
-	err := json.NewDecoder(r.Body).Decode(dst)
+func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst any) error {
+	// Use http.MaxBytesReader() to limit the size of the request body to 1MB.
+	maxBytes := 1_048_576
+	r.Body = http.MaxBytesReader(w, r.Body, int64(maxBytes))
+
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+
+	err := decoder.Decode(dst)
 	if err != nil {
 		// If there's an error during decoding, start the triage.
 		var syntaxError *json.SyntaxError
 		var unmarshalTypeError *json.UnmarshalTypeError
 		var invalidUnmarshalError *json.InvalidUnmarshalError
+		var maxBytesError *http.MaxBytesError
 
 		switch {
 		// Check whether the error has the type *json.SyntaxError.
@@ -96,6 +105,18 @@ func (app *application) readJSON(r *http.Request, dst any) error {
 		case errors.Is(err, io.EOF):
 			return errors.New("body must not be empty")
 
+		// If the JSON contains a field which cannot be mapped to the target
+		// destination then Decode() will now return an error message in the format
+		// "json: unknown field "<name>"". We check for this, extract the field name
+		// from the error, and interpolate it into our custom error message.
+		case strings.HasPrefix(err.Error(), "json: unknown field "):
+			fieldName := strings.TrimPrefix(err.Error(), "json: unknown field ")
+			return fmt.Errorf("body contains unknown key %s", fieldName)
+
+		// Check whether the error has type *http.MaxBytesError.
+		case errors.As(err, &maxBytesError):
+			return fmt.Errorf("ody must not be larger than %d bytes", maxBytesError.Limit)
+
 		// A json.InvalidUnmarshalError error will be returned if we pass something
 		// that is not a non-nil pointer to Decode(). We catch this and panic(),
 		// rather than return an error to our handler.
@@ -106,6 +127,16 @@ func (app *application) readJSON(r *http.Request, dst any) error {
 		default:
 			return err
 		}
+	}
+
+	// Call Decode() again, using a pointer to an empty anonymous struct as the
+	// destination. If the request body only contained a single JSON value this
+	// will return an io.EOF error. So if we get anything else, we know that there
+	// is additional data in the request body and we return our own custom error
+	// message.
+	err = decoder.Decode(&struct{}{})
+	if !errors.Is(err, io.EOF) {
+		return errors.New("body must only contain a single JSON value")
 	}
 
 	return nil
