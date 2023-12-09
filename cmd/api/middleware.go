@@ -72,34 +72,41 @@ func (app *application) rateLimit(next http.Handler) http.Handler {
 	// The function we're returning is a closure, which 'closes over' the limiter
 	// variable.
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ip, _, err := net.SplitHostPort(r.RemoteAddr)
-		if err != nil {
-			app.serverErrorResponse(w, r, err)
-			return
-		}
+		if app.config.limiter.enabled {
+			ip, _, err := net.SplitHostPort(r.RemoteAddr)
+			if err != nil {
+				app.serverErrorResponse(w, r, err)
+				return
+			}
 
-		// Lock the mutex to prevent this code from being executed concurrently.
-		mtx.Lock()
+			// Lock the mutex to prevent this code from being executed concurrently.
+			mtx.Lock()
 
-		if _, found := clients[ip]; !found {
-			// Initialize a new rate limiter which allows an average of 2 requests per
-			// second, with a maximum of 4 requests in a single 'burst'.
-			clients[ip] = &client{limiter: rate.NewLimiter(2, 4)}
-		}
+			if _, found := clients[ip]; !found {
+				// Initialize a new rate limiter which allows an average of 2 requests
+				// per second, with a maximum of 4 requests in a single 'burst'.
+				clients[ip] = &client{
+					limiter: rate.NewLimiter(
+						rate.Limit(app.config.limiter.rps),
+						app.config.limiter.burst,
+					),
+				}
+			}
 
-		clients[ip].lastSeen = time.Now()
+			clients[ip].lastSeen = time.Now()
 
-		if !clients[ip].limiter.Allow() {
+			if !clients[ip].limiter.Allow() {
+				mtx.Unlock()
+				app.rateLimitExceededResponse(w, r)
+				return
+			}
+
+			// Very importantly, unlock the mutex before calling the next handler in
+			// the chain. Notice that we DON'T use defer to unlock the mutex, as that
+			// would mean that the mutex isn't unlocked until all the handlers
+			// downstream of this middleware have also returned.
 			mtx.Unlock()
-			app.rateLimitExceededResponse(w, r)
-			return
 		}
-
-		// Very importantly, unlock the mutex before calling the next handler in the
-		// chain. Notice that we DON'T use defer to unlock the mutex, as that would
-		// mean that the mutex isn't unlocked until all the handlers downstream of
-		// this middleware have also returned.
-		mtx.Unlock()
 
 		next.ServeHTTP(w, r)
 	})
