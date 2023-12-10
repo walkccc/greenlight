@@ -193,7 +193,11 @@ func (app *application) readInt(
 // background goroutine that is capable of recovering from any panics that may
 // occur.
 func (app *application) background(fn func()) {
+	app.wg.Add(1)
+
 	go func() {
+		defer app.wg.Done()
+
 		// Recover any panic.
 		defer func() {
 			if err := recover(); err != nil {
