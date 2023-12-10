@@ -15,6 +15,10 @@ var (
 	ErrDuplicateEmail = errors.New("duplicate email")
 )
 
+// AnonymousUser holds a pointer to a User struct representing an inactivated
+// user with no ID, name, email, or password.
+var AnonymousUser = &User{}
+
 type User struct {
 	ID        int64     `json:"id"`
 	CreatedAt time.Time `json:"created_at"`
@@ -23,6 +27,11 @@ type User struct {
 	Password  password  `json:"-"`
 	Activated bool      `json:"activated"`
 	Version   int       `json:"-"`
+}
+
+// IsAnonymous checks whether a User instance is the AnonymousUser.
+func (u *User) IsAnonymous() bool {
+	return u == AnonymousUser
 }
 
 type password struct {
