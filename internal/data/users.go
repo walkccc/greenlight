@@ -2,6 +2,7 @@ package data
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"errors"
 	"time"
@@ -94,6 +95,7 @@ func ValidateUser(v *validator.Validator, user *User) {
 type UserModelInterface interface {
 	Create(user *User) error
 	GetByEmail(email string) (*User, error)
+	GetForToken(scope, tokenPlaintext string) (*User, error)
 	Update(user *User) error
 }
 
@@ -149,6 +151,56 @@ func (m UserModel) GetByEmail(email string) (*User, error) {
 	defer cancel()
 
 	err := m.DB.QueryRowContext(ctx, query, email).Scan(
+		&user.ID,
+		&user.CreatedAt,
+		&user.Name,
+		&user.Email,
+		&user.Password.hash,
+		&user.Activated,
+		&user.Version,
+	)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, ErrRecordNotFound
+		default:
+			return nil, err
+		}
+	}
+
+	return &user, nil
+}
+
+func (m UserModel) GetForToken(tokenScope, tokenPlaintext string) (*User, error) {
+	tokenHash := sha256.Sum256([]byte(tokenPlaintext))
+
+	query := `
+		SELECT
+			"Users".id,
+			"Users".created_at,
+			"Users".name,
+			"Users".email,
+			"Users".password_hash,
+			"Users".activated,
+			"Users".version
+		FROM "Users"
+		INNER JOIN "Tokens"
+			ON ("Users".id = "Tokens".user_id)
+		WHERE
+			"Tokens".hash = $1
+			AND "Tokens".scope = $2
+			AND "Tokens".expiry > $3`
+	args := []any{
+		tokenHash[:],
+		tokenScope,
+		time.Now(),
+	}
+
+	var user User
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := m.DB.QueryRowContext(ctx, query, args...).Scan(
 		&user.ID,
 		&user.CreatedAt,
 		&user.Name,
