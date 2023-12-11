@@ -49,6 +49,6 @@ func (app *application) routes() http.Handler {
 		app.createAuthenticationTokenHandler,
 	)
 
-	standard := alice.New(app.recoverPanic, app.rateLimit, app.authenticate)
+	standard := alice.New(app.recoverPanic, app.enableCORS, app.rateLimit, app.authenticate)
 	return standard.Then(router)
 }
