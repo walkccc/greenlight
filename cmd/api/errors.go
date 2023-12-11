@@ -119,3 +119,10 @@ func (app *application) inactiveAccountResponse(w http.ResponseWriter, r *http.R
 	message := "Your user account must be activated to access this resource."
 	app.errorResponse(w, r, http.StatusForbidden, message)
 }
+
+// notPermittedResponse sends a 403 Forbidden status code and JSON response to
+// the client.
+func (app *application) notPermittedResponse(w http.ResponseWriter, r *http.Request) {
+	message := "Your user account doesn't have the necessary permissions to access this resource."
+	app.errorResponse(w, r, http.StatusForbidden, message)
+}

@@ -17,27 +17,27 @@ func (app *application) routes() http.Handler {
 	router.HandlerFunc(
 		http.MethodGet,
 		"/v1/movies",
-		app.requireActivatedUser(app.getMoviesHandler),
+		app.requirePermission("movies:read", app.getMoviesHandler),
 	)
 	router.HandlerFunc(
 		http.MethodPost,
 		"/v1/movies",
-		app.requireActivatedUser(app.createMovieHandler),
+		app.requirePermission("movies:write", app.createMovieHandler),
 	)
 	router.HandlerFunc(
 		http.MethodGet,
 		"/v1/movies/:id",
-		app.requireActivatedUser(app.getMovieHandler),
+		app.requirePermission("movies:read", app.getMovieHandler),
 	)
 	router.HandlerFunc(
 		http.MethodPatch,
 		"/v1/movies/:id",
-		app.requireActivatedUser(app.updateMovieHandler),
+		app.requirePermission("movies:write", app.updateMovieHandler),
 	)
 	router.HandlerFunc(
 		http.MethodDelete,
 		"/v1/movies/:id",
-		app.requireActivatedUser(app.deleteMovieHandler),
+		app.requirePermission("movies:write", app.deleteMovieHandler),
 	)
 
 	router.HandlerFunc(http.MethodPost, "/v1/users", app.createUserHandler)
