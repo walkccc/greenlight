@@ -52,6 +52,12 @@ func (app *application) routes() http.Handler {
 
 	router.Handler(http.MethodGet, "/debug/vars", expvar.Handler())
 
-	standard := alice.New(app.recoverPanic, app.enableCORS, app.rateLimit, app.authenticate)
+	standard := alice.New(
+		app.metrics,
+		app.recoverPanic,
+		app.enableCORS,
+		app.rateLimit,
+		app.authenticate,
+	)
 	return standard.Then(router)
 }
