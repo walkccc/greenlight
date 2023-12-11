@@ -1,3 +1,5 @@
+include .envrc
+
 # Global constants
 POSTGRES_USER=root
 POSTGRES_PASSWORD=password
@@ -15,7 +17,7 @@ confirm:
 ## run/api: Run the cmd/api application
 .PHONY: run/api
 run/api:
-	go run ./cmd/api
+	go run ./cmd/api -db-dsn=${GREENLIGHT_DB_DSN}
 
 ## postgres: Run postgres by Docker
 .PHONY: postgres
