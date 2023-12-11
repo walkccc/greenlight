@@ -4,13 +4,13 @@ import (
 	"errors"
 	"expvar"
 	"fmt"
-	"net"
 	"net/http"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/tomasen/realip"
 	"github.com/walkccc/greenlight/internal/data"
 	"github.com/walkccc/greenlight/internal/validator"
 	"golang.org/x/time/rate"
@@ -79,11 +79,10 @@ func (app *application) rateLimit(next http.Handler) http.Handler {
 	// variable.
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if app.config.limiter.enabled {
-			ip, _, err := net.SplitHostPort(r.RemoteAddr)
-			if err != nil {
-				app.serverErrorResponse(w, r, err)
-				return
-			}
+			// Retrieve the client IP address from any X-Forwarded-For or
+			// X-Real-IP headers, falling back to use r.RemoteAddr if neither of them
+			// are present.
+			ip := realip.FromRequest(r)
 
 			// Lock the mutex to prevent this code from being executed concurrently.
 			mtx.Lock()
