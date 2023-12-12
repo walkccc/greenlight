@@ -50,3 +50,28 @@ func ValidateFilters(v *validator.Validator, f Filters) {
 	v.Check(f.PageSize <= 100, "page_size", "must be a maximum of 100")
 	v.Check(validator.PermittedValue(f.Sort, f.SortSafeValues...), "sort", "invalid sort value")
 }
+
+type Metadata struct {
+	CurrentPage  int `json:"current_page,omitempty"`
+	PageSize     int `json:"page_size,omitempty"`
+	FirstPage    int `json:"first_page,omitempty"`
+	LastPage     int `json:"last_page,omitempty"`
+	TotalRecords int `json:"total_records,omitempty"`
+}
+
+// calculateMetadata calculates the appropriate pagination metadata values given
+// the total number of records, current page, and page size values. For example,
+// if there were 12 records in total and a page size of 5, the last page value
+// will be (12 - 1) / 5 + 1 = 3.
+func calculateMetadata(totalRecords, page, pageSize int) Metadata {
+	if totalRecords == 0 {
+		return Metadata{}
+	}
+	return Metadata{
+		CurrentPage:  page,
+		PageSize:     pageSize,
+		FirstPage:    1,
+		LastPage:     (totalRecords-1)/pageSize + 1,
+		TotalRecords: totalRecords,
+	}
+}
