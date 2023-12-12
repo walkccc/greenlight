@@ -1,12 +1,38 @@
 package data
 
-import "github.com/walkccc/greenlight/internal/validator"
+import (
+	"strings"
+
+	"github.com/walkccc/greenlight/internal/validator"
+)
 
 type Filters struct {
 	Page           int
 	PageSize       int
 	Sort           string
 	SortSafeValues []string
+}
+
+// sortColumn extracts the column name from the Sort field if it matches one of
+// the entries in SortSafeValues.
+func (f Filters) sortColumn() string {
+	for _, sortSafeValue := range f.SortSafeValues {
+		if f.Sort == sortSafeValue {
+			return strings.TrimPrefix(f.Sort, "-")
+		}
+	}
+
+	// A sensible failsafe to help stop a SQL injection attack.
+	panic("unsafe sort parameter: " + f.Sort)
+}
+
+// sortDirection returns the sort direction ("ASC" or "DESC") depending on the
+// prefix character of Sort field.
+func (f Filters) sortDirection() string {
+	if strings.HasPrefix(f.Sort, "-") {
+		return "DESC"
+	}
+	return "ASC"
 }
 
 func ValidateFilters(v *validator.Validator, f Filters) {
